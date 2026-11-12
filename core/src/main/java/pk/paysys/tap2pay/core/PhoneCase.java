@@ -67,9 +67,9 @@ public enum PhoneCase {
     /** Where the case is listed on the screen. */
     public enum Group {
         /** Phone answers like the NBP app; the result checks what the POS sent. */
-        QR_CHECK("Payment QR checks: phone accepts like the NBP app"),
+        QR_CHECK("Payment QR"),
         /** Phone answers badly on purpose; the result is checked on the POS. */
-        FAULT("Failure scenarios: phone misbehaves on purpose");
+        FAULT("Failure scenarios");
 
         public final String title;
 

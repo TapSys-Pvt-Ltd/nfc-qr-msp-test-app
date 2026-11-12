@@ -73,7 +73,7 @@ public final class CaseResult {
     /** One or two sentences for the card: what the latest tap showed and what the tester still has to check. */
     public String explanation() {
         TapRecord t = latest();
-        if (t == null) return "Select this case, then hold the phone on the POS reader.";
+        if (t == null) return "No tap yet.";
         String reason = capitalise(t.reason());
         switch (status) {
             case IN_PROGRESS:

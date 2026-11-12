@@ -14,7 +14,6 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.nfc.NfcAdapter;
 import android.nfc.cardemulation.CardEmulation;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -124,8 +123,6 @@ public class MainActivity extends Activity implements TestStore.Listener {
             }
             cases.addView(caseCard(c));
         }
-        cases.addView(footnote("Results are kept since the app started. Every finished tap is also saved to "
-                + store.logPath()));
 
         boolean landscape = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
         LinearLayout root = column();
@@ -411,9 +408,6 @@ public class MainActivity extends Activity implements TestStore.Listener {
         title.setTypeface(DISPLAY);
         row.addView(title);
         bar.addView(row);
-        TextView sub = text("Hold this phone on the POS reader to test its Tap2Pay push", 13, MUTED);
-        sub.setPadding(0, dp(6), 0, 0);
-        bar.addView(sub);
 
         LinearLayout wrap = column();
         wrap.addView(bar);
@@ -437,8 +431,6 @@ public class MainActivity extends Activity implements TestStore.Listener {
         nextCase = text("", 20, ACCENT_INK);
         nextCase.setTypeface(DISPLAY);
         box.addView(nextCase);
-        TextView hint = text("Tap a case below to change it.", 12, MUTED);
-        box.addView(hint);
 
         summary = text("", 13, INK);
         summary.setTypeface(DISPLAY);
@@ -462,7 +454,7 @@ public class MainActivity extends Activity implements TestStore.Listener {
         clear.setOnClickListener(v -> {
             if (dialog != null) dialog.dismiss();
             dialog = new AlertDialog.Builder(this)
-                    .setMessage("Clear the results of every case? The log file keeps them.")
+                    .setMessage("Clear all results?")
                     .setPositiveButton("Clear", (d, w) -> store.clear())
                     .setNegativeButton("Cancel", null)
                     .show();
@@ -482,20 +474,19 @@ public class MainActivity extends Activity implements TestStore.Listener {
         NfcAdapter adapter = NfcAdapter.getDefaultAdapter(this);
         boolean ready = adapter != null && adapter.isEnabled();
         String nfc = adapter == null ? "●  No NFC hardware"
-                : adapter.isEnabled() ? "●  NFC on" : "●  NFC is OFF: turn it on in Settings";
-        if (cardEmulation != null && adapter != null && adapter.isEnabled()) {
-            boolean routed = cardEmulation.isDefaultServiceForAid(service, AID);
-            ready &= routed;
-            nfc += routed ? ", Tap2Pay taps come to this app" : ", Tap2Pay taps not routed here yet";
+                : adapter.isEnabled() ? "●  NFC ready" : "●  NFC is off: turn it on in Settings";
+        if (cardEmulation != null && adapter != null && adapter.isEnabled()
+                && !cardEmulation.isDefaultServiceForAid(service, AID)) {
+            ready = false;
+            nfc = "●  Tap2Pay taps not routed to this app yet";
         }
         nfcStatus.setText(nfc);
         nfcStatus.setTextColor(ready ? GOOD : BAD);
 
-        StringBuilder sb = new StringBuilder();
-        sb.append(Build.MANUFACTURER).append(' ').append(Build.MODEL)
-                .append("  ·  Android ").append(Build.VERSION.RELEASE);
-        if (installed(NBP_APP)) sb.append("\nNBP app is also installed: keep this screen open while tapping.");
-        deviceStatus.setText(sb.toString());
+        // The NBP app registers the same AID; it only loses to this app while this screen is in front.
+        boolean nbp = installed(NBP_APP);
+        deviceStatus.setText(nbp ? "NBP app installed: keep this screen open while tapping." : "");
+        deviceStatus.setVisibility(nbp ? View.VISIBLE : View.GONE);
     }
 
     private static int badgeFill(CaseResult.Status s) {
@@ -605,12 +596,6 @@ public class MainActivity extends Activity implements TestStore.Listener {
         t.setTypeface(Typeface.DEFAULT_BOLD);
         t.setLetterSpacing(0.06f);
         t.setPadding(dp(16), dp(16), dp(16), dp(4));
-        return t;
-    }
-
-    private TextView footnote(String s) {
-        TextView t = text(s, 11, MUTED);
-        t.setPadding(dp(16), dp(8), dp(16), dp(8));
         return t;
     }
 

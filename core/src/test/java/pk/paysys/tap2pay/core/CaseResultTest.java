@@ -31,7 +31,7 @@ public class CaseResultTest {
         assertNull(r.latest());
         assertTrue(r.taps.isEmpty());
         assertEquals("", r.tally());
-        assertTrue(r.explanation().startsWith("Select this case"));
+        assertEquals("No tap yet.", r.explanation());
     }
 
     // Each verdict maps to its badge; only taps of this case count, newest first
