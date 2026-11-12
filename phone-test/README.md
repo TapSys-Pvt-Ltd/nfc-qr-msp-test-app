@@ -1,4 +1,4 @@
-# Tapsys Tap2Pay test kit (Xiaomi and any Android phone with HCE)
+# Tapsys Tap2Pay Test Kit (Xiaomi and any Android phone with HCE)
 
 A phone app that plays the customer's phone for a real Tap2Pay POS: the **Urovo i9100** (FBL app) or the
 **Sunmi P3** (Mindcrafts app). You pick a case, the POS pushes its QR, and the app shows every APDU it

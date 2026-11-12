@@ -448,7 +448,7 @@ public class MainActivity extends Activity implements TestStore.Listener {
         LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(dp(1), dp(22));
         rp.setMargins(dp(12), 0, dp(12), 0);
         row.addView(rule, rp);
-        TextView title = text("Tap2Pay test kit", 18, INK);
+        TextView title = text("Tap2Pay Test Kit", 18, INK);
         title.setTypeface(DISPLAY);
         row.addView(title);
         bar.addView(row);
