@@ -14,10 +14,13 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.nfc.NfcAdapter;
 import android.nfc.cardemulation.CardEmulation;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -37,7 +40,7 @@ import pk.paysys.tap2pay.core.TapRecord;
  * Pick a case, hold the phone on the Urovo or Sunmi reader, read the result under that case. While this screen is
  * in front it is the preferred service for the Tap2Pay AID, so it wins over the NBP app (which registers the same
  * AID). Optional extra {@code case} (a {@link PhoneCase} name) selects the case, e.g. from adb.
- * Portrait: one column. Landscape: status on the left, cases on the right.
+ * Portrait: one column. Landscape: status on the left, cases on the right. Clear / copy sit after the last case.
  * Results are kept in memory since the app started; every finished tap is also appended to the log file.
  */
 public class MainActivity extends Activity implements TestStore.Listener {
@@ -115,19 +118,15 @@ public class MainActivity extends Activity implements TestStore.Listener {
         status.addView(statusCard());
 
         LinearLayout cases = column();
-        PhoneCase.Group group = null;
-        for (PhoneCase c : PhoneCase.values()) {
-            if (c.group != group) {
-                group = c.group;
-                cases.addView(sectionTitle(group.title));
-            }
-            cases.addView(caseCard(c));
-        }
+        cases.addView(sectionTitle("Test cases"));
+        for (PhoneCase c : PhoneCase.values()) cases.addView(caseCard(c));
+        cases.addView(actionButtons());
 
         boolean landscape = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
         LinearLayout root = column();
         root.setBackgroundColor(PAGE);
-        root.addView(appBar());
+        View bar = appBar();
+        root.addView(bar);
         if (landscape) {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
@@ -141,8 +140,7 @@ public class MainActivity extends Activity implements TestStore.Listener {
             root.addView(scroll(all), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
         }
         setContentView(root);
-        getWindow().setStatusBarColor(Color.WHITE);
-        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+        fitSystemBars(root, bar);
 
         service = new ComponentName(this, PhoneTestService.class);
         NfcAdapter adapter = NfcAdapter.getDefaultAdapter(this);
@@ -163,7 +161,7 @@ public class MainActivity extends Activity implements TestStore.Listener {
             store.setCase(PhoneCase.parse(name));
             expanded = store.currentCase();
         }
-        showCurrentCase();
+        onTapsChanged();
     }
 
     @Override
@@ -205,23 +203,16 @@ public class MainActivity extends Activity implements TestStore.Listener {
         showStatus();
         showCurrentCase();
         List<TapRecord> taps = store.taps();
+        PhoneCase current = store.currentCase();
         int pass = 0;
         int fail = 0;
-        int check = 0;
-        int notRun = 0;
         for (CaseViews v : caseViews) {
-            CaseResult r = CaseResult.of(taps, v.phoneCase);
+            CaseResult r = CaseResult.of(taps, v.phoneCase, v.phoneCase == current);
             showResult(v, r);
-            switch (r.status) {
-                case PASS: pass++; break;
-                case FAIL: fail++; break;
-                case CHECK_POS: check++; break;
-                case NOT_RUN: notRun++; break;
-                default: break;
-            }
+            if (r.status == CaseResult.Status.PASS) pass++;
+            else if (r.status == CaseResult.Status.FAIL) fail++;
         }
-        summary.setText(String.format(Locale.US, "%d\u00a0PASS  ·  %d\u00a0FAIL  ·  %d\u00a0CHECK\u00a0POS  ·  %d\u00a0NOT\u00a0RUN",
-                pass, fail, check, notRun));
+        summary.setText(String.format(Locale.US, "%d\u00a0PASS  ·  %d\u00a0FAIL", pass, fail));
     }
 
     // ---------------------------------------------------------------- cases
@@ -302,7 +293,8 @@ public class MainActivity extends Activity implements TestStore.Listener {
         } else {
             expanded = expanded == c ? null : c;
         }
-        showCurrentCase();
+        // results too: the picked case shows WAITING FOR TAP when it has not been run, the old one goes back
+        onTapsChanged();
     }
 
     private void showCurrentCase() {
@@ -329,13 +321,14 @@ public class MainActivity extends Activity implements TestStore.Listener {
         v.badge.setTextColor(badgeInk(r.status));
         v.explanation.setText(r.explanation());
         v.explanation.setTextColor(r.status == CaseResult.Status.FAIL ? BAD
-                : r.status == CaseResult.Status.PASS ? GOOD : r.status == CaseResult.Status.NOT_RUN ? MUTED : INK);
+                : r.status == CaseResult.Status.PASS ? GOOD : r.status == CaseResult.Status.NOT_RUN ? MUTED
+                : r.status == CaseResult.Status.WAITING ? ACCENT_INK : INK);
         v.tally.setText(r.tally());
     }
 
     /** The rest of the case: what it simulates, what the phone does, what the POS should show, and its log. */
     private void showDetails(PhoneCase c) {
-        CaseResult r = CaseResult.of(store.taps(), c);
+        CaseResult r = CaseResult.of(store.taps(), c, c == store.currentCase());
         LinearLayout content = column();
         content.setPadding(dp(20), dp(4), dp(20), dp(12));
         TextView simulates = text(c.simulates, 14, INK);
@@ -388,6 +381,57 @@ public class MainActivity extends Activity implements TestStore.Listener {
 
     // ---------------------------------------------------------------- header and status
 
+    /**
+     * targetSdk 35 draws the app edge to edge on Android 15+ (the status and navigation bars sit over the content and
+     * setStatusBarColor does nothing), so pad for the bars ourselves: the white app bar grows under the status bar,
+     * the page keeps clear of the navigation bar and, in landscape, of a side cutout. Older Android sends the same
+     * insets for a window that is not edge to edge, where the bars already take their own space, so only pad there
+     * when the window really draws behind them.
+     */
+    private void fitSystemBars(View root, View bar) {
+        int barTop = bar.getPaddingTop();
+        root.setOnApplyWindowInsetsListener((v, insets) -> {
+            int left;
+            int top;
+            int right;
+            int bottom;
+            if (Build.VERSION.SDK_INT >= 30) {
+                android.graphics.Insets i = insets.getInsets(
+                        WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                left = i.left;
+                top = i.top;
+                right = i.right;
+                bottom = i.bottom;
+            } else {
+                left = insets.getSystemWindowInsetLeft();
+                top = insets.getSystemWindowInsetTop();
+                right = insets.getSystemWindowInsetRight();
+                bottom = insets.getSystemWindowInsetBottom();
+            }
+            v.setPadding(left, 0, right, bottom);
+            bar.setPadding(bar.getPaddingLeft(), barTop + top, bar.getPaddingRight(), bar.getPaddingBottom());
+            return insets;
+        });
+        if (Build.VERSION.SDK_INT >= 30) {
+            // the whole window is laid out behind the bars; dark icons on the white bar and the light page
+            getWindow().setDecorFitsSystemWindows(false);
+            WindowInsetsController c = getWindow().getInsetsController();
+            if (c != null) {
+                int light = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                        | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                c.setSystemBarsAppearance(light, light);
+            }
+            getWindow().setStatusBarColor(Color.TRANSPARENT);
+            getWindow().setNavigationBarColor(Color.TRANSPARENT);
+        } else {
+            getWindow().setStatusBarColor(Color.WHITE);
+            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+            // pre-30: the window is not edge to edge, the bars take their own space; drop the insets padding
+            root.setOnApplyWindowInsetsListener(null);
+        }
+        root.requestApplyInsets();
+    }
+
     private View appBar() {
         LinearLayout bar = column();
         bar.setBackgroundColor(Color.WHITE);
@@ -404,12 +448,13 @@ public class MainActivity extends Activity implements TestStore.Listener {
         LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(dp(1), dp(22));
         rp.setMargins(dp(12), 0, dp(12), 0);
         row.addView(rule, rp);
-        TextView title = text("Tap2Pay Phone Test", 18, INK);
+        TextView title = text("Tap2Pay test kit", 18, INK);
         title.setTypeface(DISPLAY);
         row.addView(title);
         bar.addView(row);
 
         LinearLayout wrap = column();
+        wrap.setBackgroundColor(Color.WHITE);
         wrap.addView(bar);
         View border = new View(this);
         border.setBackgroundColor(LINE);
@@ -442,11 +487,15 @@ public class MainActivity extends Activity implements TestStore.Listener {
         box.addView(summary, sp);
 
         deviceStatus = text("", 12, MUTED);
-        deviceStatus.setPadding(0, dp(10), 0, 0);
+        deviceStatus.setPadding(0, dp(10), 0, dp(6));
         box.addView(deviceStatus);
+        return card(box);
+    }
 
+    /** Clear results / Copy all taps, at the end of the screen after the last case. */
+    private View actionButtons() {
         LinearLayout buttons = new LinearLayout(this);
-        buttons.setPadding(0, dp(6), 0, 0);
+        buttons.setPadding(dp(12), dp(6), dp(12), 0);
         Button clear = new Button(this, null, android.R.attr.borderlessButtonStyle);
         clear.setText("Clear results");
         clear.setAllCaps(false);
@@ -466,8 +515,7 @@ public class MainActivity extends Activity implements TestStore.Listener {
         copy.setOnClickListener(v -> copyAll());
         buttons.addView(clear, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         buttons.addView(copy, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        box.addView(buttons);
-        return card(box);
+        return buttons;
     }
 
     private void showStatus() {
@@ -494,14 +542,15 @@ public class MainActivity extends Activity implements TestStore.Listener {
             case PASS: return GOOD_FILL;
             case FAIL: return BAD_FILL;
             case CHECK_POS: return WARN_FILL;
-            case IN_PROGRESS: return ACCENT_FILL;
-            case NA: return SURFACE2;
+            case IN_PROGRESS:
+            case WAITING: return ACCENT_FILL;
             default: return Color.WHITE;
         }
     }
 
     private static int badgeStroke(CaseResult.Status s) {
-        return s == CaseResult.Status.NOT_RUN ? LINE : badgeFill(s);
+        // WAITING sits on the selected card, which is already ACCENT_FILL: outline it so the badge stays visible
+        return s == CaseResult.Status.NOT_RUN ? LINE : s == CaseResult.Status.WAITING ? ACCENT : badgeFill(s);
     }
 
     private static int badgeInk(CaseResult.Status s) {
@@ -509,7 +558,8 @@ public class MainActivity extends Activity implements TestStore.Listener {
             case PASS: return GOOD;
             case FAIL: return BAD;
             case CHECK_POS: return WARN;
-            case IN_PROGRESS: return ACCENT_INK;
+            case IN_PROGRESS:
+            case WAITING: return ACCENT_INK;
             default: return MUTED;
         }
     }

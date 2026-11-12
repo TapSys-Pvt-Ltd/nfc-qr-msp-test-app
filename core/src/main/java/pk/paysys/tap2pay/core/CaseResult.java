@@ -13,12 +13,13 @@ public final class CaseResult {
     /** The badge under a case. */
     public enum Status {
         NOT_RUN("NOT RUN"),
+        /** Not run yet and picked for the next tap: the phone is waiting for the POS. */
+        WAITING("WAITING FOR TAP"),
         IN_PROGRESS("IN PROGRESS"),
         PASS("PASS"),
         FAIL("FAIL"),
         /** The phone injected its fault; whether the POS handled it is read on the POS. */
-        CHECK_POS("CHECK POS"),
-        NA("N/A");
+        CHECK_POS("CHECK POS");
 
         public final String label;
 
@@ -34,10 +35,10 @@ public final class CaseResult {
     public final int passed;
     public final int failed;
 
-    private CaseResult(PhoneCase phoneCase, List<TapRecord> taps) {
+    private CaseResult(PhoneCase phoneCase, List<TapRecord> taps, boolean selected) {
         this.phoneCase = phoneCase;
         this.taps = Collections.unmodifiableList(taps);
-        this.status = taps.isEmpty() ? Status.NOT_RUN : status(taps.get(0));
+        this.status = !taps.isEmpty() ? status(taps.get(0)) : selected ? Status.WAITING : Status.NOT_RUN;
         int p = 0;
         int f = 0;
         for (TapRecord t : taps) {
@@ -48,11 +49,19 @@ public final class CaseResult {
         failed = f;
     }
 
-    /** The result for {@code c} from {@code newestFirst} (all taps, any case, newest first). */
+    /** The result for {@code c} from {@code newestFirst} (all taps, any case, newest first), not selected. */
     public static CaseResult of(List<TapRecord> newestFirst, PhoneCase c) {
+        return of(newestFirst, c, false);
+    }
+
+    /**
+     * As {@link #of(List, PhoneCase)}; {@code selected} = {@code c} is the case the next tap will use, so a case with
+     * no taps shows {@link Status#WAITING} instead of {@link Status#NOT_RUN}.
+     */
+    public static CaseResult of(List<TapRecord> newestFirst, PhoneCase c, boolean selected) {
         List<TapRecord> mine = new ArrayList<>();
         for (TapRecord t : newestFirst) if (t.phoneCase == c) mine.add(t);
-        return new CaseResult(c, mine);
+        return new CaseResult(c, mine, selected);
     }
 
     public static Status status(TapRecord t) {
@@ -60,7 +69,6 @@ public final class CaseResult {
             case PASS: return Status.PASS;
             case FAIL: return Status.FAIL;
             case DONE: return Status.CHECK_POS;
-            case NA: return Status.NA;
             default: return Status.IN_PROGRESS;
         }
     }
@@ -73,7 +81,9 @@ public final class CaseResult {
     /** One or two sentences for the card: what the latest tap showed and what the tester still has to check. */
     public String explanation() {
         TapRecord t = latest();
-        if (t == null) return "No tap yet.";
+        if (t == null) {
+            return status == Status.WAITING ? "Waiting for a tap: hold this phone on the POS reader." : "No tap yet.";
+        }
         String reason = capitalise(t.reason());
         switch (status) {
             case IN_PROGRESS:

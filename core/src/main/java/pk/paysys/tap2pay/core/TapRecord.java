@@ -14,9 +14,7 @@ public final class TapRecord {
         /** Something went wrong in the exchange (the POS or the link, not the injected fault). */
         FAIL,
         /** The fault was injected; whether the POS handled it is checked on the POS screen. */
-        DONE,
-        /** The case could not apply to what the POS sent. */
-        NA
+        DONE
     }
 
     /** One APDU in either direction. */

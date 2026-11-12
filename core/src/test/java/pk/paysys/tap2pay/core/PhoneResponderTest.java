@@ -45,13 +45,13 @@ public class PhoneResponderTest {
         });
     }
 
-    private PhoneResponder.Reply send(byte[] apdu) {
+    private byte[] send(byte[] apdu) {
         now += 5;
         return r.onApdu(apdu);
     }
 
-    private static int sw(PhoneResponder.Reply reply) {
-        return Apdu.swOf(reply.response);
+    private static int sw(byte[] response) {
+        return Apdu.swOf(response);
     }
 
     /** SELECT then every APDU; returns the SW of the last one. */
@@ -259,105 +259,38 @@ public class PhoneResponderTest {
         assertEquals(TapRecord.Verdict.PASS, t.verdict());
     }
 
-    // Row 17
+    // The kept fault case: the wallet takes the whole QR and refuses it as invalid data
     @Test
-    public void slowAnswerDelivered() {
-        current = PhoneCase.SLOW_ANSWER;
+    public void rejectDataAnswers6A80() {
+        current = PhoneCase.REJECT_DATA;
         List<byte[]> pushes = PhoneFixtures.spec(PhoneFixtures.DYNAMIC);
         assertEquals(Apdu.SW_OK, sw(send(Apdu.SELECT)));
         assertEquals(Apdu.SW_OK, sw(send(pushes.get(0))));
-        PhoneResponder.Reply last = send(pushes.get(1));
-        assertEquals(PhoneCase.SLOW_ANSWER_MS, last.delayMs);
-        assertEquals(Apdu.SW_OK, sw(last));
-        now += PhoneCase.SLOW_ANSWER_MS;
-        r.onDelayedSent(last.response);
-        TapRecord t = end();
-        assertEquals(TapRecord.Verdict.PASS, t.verdict());
-        assertTrue(t.describe(false).contains("after the hold"));
-    }
-
-    // Row 18a
-    @Test
-    public void slowAnswerDroppedByPos() {
-        current = PhoneCase.SLOW_ANSWER;
-        tap(PhoneFixtures.spec(PhoneFixtures.STATIC));
-        now += 800;
-        TapRecord t = end();
-        assertEquals(TapRecord.Verdict.FAIL, t.verdict());
-        assertTrue(t.notes().toString(), t.notes().toString().contains("POS gave up 820 ms"));
-    }
-
-    // Row 18b
-    @Test
-    public void noAnswerReportsHowLongThePosWaited() {
-        current = PhoneCase.NO_ANSWER;
-        assertEquals(Apdu.SW_OK, sw(send(Apdu.SELECT)));
-        PhoneResponder.Reply reply = send(PhoneFixtures.spec(PhoneFixtures.STATIC).get(0));
-        assertNull(reply.response);
-        assertEquals(PhoneResponder.Reply.NEVER, reply.delayMs);
-        now += 4980;
+        assertEquals(Apdu.SW_BAD_DATA, sw(send(pushes.get(1))));
         TapRecord t = end();
         assertEquals(TapRecord.Verdict.DONE, t.verdict());
-        assertEquals("POS waited 5000 ms for an answer", t.reason());
+        assertTrue(t.describe(false).contains("Check on POS"));
+        assertEquals("phone received the whole QR and refused it with 6A80", t.reason());
+        assertTrue(PhoneCase.REJECT_DATA.phoneDoes.contains("6A80"));
     }
 
-    // Row 19 (and the NOT_INSTALLED pass)
+    // Reject case with a protocol error is still a FAIL (the POS broke the transfer, not the injected fault)
     @Test
-    public void notInstalled() {
-        current = PhoneCase.NOT_INSTALLED;
-        assertEquals(0x6A82, sw(send(Apdu.SELECT)));
-        assertEquals(TapRecord.Verdict.PASS, end().verdict());
+    public void rejectDataWithBrokenTransferFails() {
+        current = PhoneCase.REJECT_DATA;
+        List<byte[]> spec = PhoneFixtures.spec(PhoneFixtures.DYNAMIC, 100);
+        assertEquals(Apdu.SW_WRONG_P1P2, tap(java.util.Arrays.asList(spec.get(0), spec.get(2))));
+        assertEquals(TapRecord.Verdict.FAIL, end().verdict());
+    }
 
-        assertEquals(0x6A82, sw(send(Apdu.SELECT)));
-        assertEquals(Apdu.SW_CONDITIONS, sw(send(PhoneFixtures.spec(PhoneFixtures.STATIC).get(0))));
+    // Reject case, link lost before the QR completed
+    @Test
+    public void rejectDataLinkLostIsFail() {
+        current = PhoneCase.REJECT_DATA;
+        tap(PhoneFixtures.spec(PhoneFixtures.DYNAMIC).subList(0, 1));
         TapRecord t = end();
         assertEquals(TapRecord.Verdict.FAIL, t.verdict());
-        assertEquals("POS ignored the 6A82 and pushed anyway", t.reason());
-    }
-
-    // Break 2nd chunk, chunked
-    @Test
-    public void breakSecondChunk() {
-        current = PhoneCase.BREAK_SECOND_CHUNK;
-        assertEquals(Apdu.SW_WRONG_P1P2, tap(PhoneFixtures.index(PhoneFixtures.DYNAMIC, 120).subList(0, 2)));
-        TapRecord t = end();
-        assertEquals(TapRecord.Verdict.DONE, t.verdict());
-
-        // a clean retry from chunk 1 in the same tap then succeeds
-        assertEquals(Apdu.SW_OK, sw(send(Apdu.SELECT)));
-        List<byte[]> spec = PhoneFixtures.spec(PhoneFixtures.DYNAMIC);
-        assertEquals(Apdu.SW_OK, sw(send(spec.get(0))));
-        assertEquals(Apdu.SW_WRONG_P1P2, sw(send(spec.get(1))));
-        assertEquals(Apdu.SW_OK, sw(send(spec.get(0))));
-        assertEquals(Apdu.SW_OK, sw(send(spec.get(1))));
-        assertEquals(TapRecord.Verdict.DONE, end().verdict());
-    }
-
-    // Row 20
-    @Test
-    public void breakSecondChunkWithOneApduIsNa() {
-        current = PhoneCase.BREAK_SECOND_CHUNK;
-        assertEquals(Apdu.SW_OK, tap(PhoneFixtures.spec(PhoneFixtures.STATIC)));
-        assertEquals(TapRecord.Verdict.NA, end().verdict());
-    }
-
-    @Test
-    public void rejectCasesAnswerTheirStatusWord() {
-        PhoneCase[] cases = {PhoneCase.REJECT_DATA, PhoneCase.REJECT_CONDITIONS, PhoneCase.REJECT_ERROR};
-        int[] sws = {Apdu.SW_BAD_DATA, Apdu.SW_CONDITIONS, Apdu.SW_UNKNOWN};
-        for (int i = 0; i < cases.length; i++) {
-            current = cases[i];
-            List<byte[]> pushes = PhoneFixtures.spec(PhoneFixtures.DYNAMIC);
-            assertEquals(Apdu.SW_OK, sw(send(Apdu.SELECT)));
-            assertEquals(Apdu.SW_OK, sw(send(pushes.get(0))));
-            assertEquals(sws[i], sw(send(pushes.get(1))));
-            TapRecord t = end();
-            assertEquals(TapRecord.Verdict.DONE, t.verdict());
-            assertTrue(t.describe(false).contains("Check on POS"));
-            String hex = String.format("%04X", sws[i]);
-            assertEquals("phone received the whole QR and refused it with " + hex, t.reason());
-            assertTrue(cases[i] + " text names " + hex, cases[i].phoneDoes.contains(hex));
-        }
+        assertEquals("link lost after chunk 1, QR never completed", t.reason());
     }
 
     // Row 21
@@ -371,26 +304,14 @@ public class PhoneResponderTest {
     @Test
     public void deactivationWithNoTapIsIgnoredAndSelectReturnsFci() {
         assertNull(r.onDeactivated(false));
-        PhoneResponder.Reply reply = send(Apdu.SELECT);
-        assertArrayEquals(Apdu.withSw(Apdu.FCI, Apdu.SW_OK), reply.response);
-        assertEquals(0, reply.delayMs);
+        assertArrayEquals(Apdu.withSw(Apdu.FCI, Apdu.SW_OK), send(Apdu.SELECT));
         assertNotNull(r.openTap());
         assertTrue(changes > 0);
     }
 
     @Test
-    public void lateDelayedSendAfterCloseIsIgnored() {
-        current = PhoneCase.SLOW_ANSWER;
-        tap(PhoneFixtures.spec(PhoneFixtures.STATIC));
-        TapRecord t = end();
-        r.onDelayedSent(Apdu.sw(Apdu.SW_OK));
-        assertEquals(TapRecord.Verdict.FAIL, t.verdict());
-        assertNull(r.openTap());
-    }
-
-    @Test
     public void caseNamesParse() {
-        assertEquals(PhoneCase.NO_ANSWER, PhoneCase.parse(" no_answer "));
+        assertEquals(PhoneCase.REJECT_DATA, PhoneCase.parse(" reject_data "));
         assertEquals(PhoneCase.ACCEPT, PhoneCase.parse("bogus"));
         assertEquals(PhoneCase.ACCEPT, PhoneCase.parse(null));
     }
@@ -509,7 +430,7 @@ public class PhoneResponderTest {
         assertEquals(TapRecord.Verdict.PASS, end().verdict());
     }
 
-    // Row 38: every case has a label, a description and a group; names saved before this change still parse
+    // Row 38: every case has a label and a description; kept names still parse, removed ones fall back to ACCEPT
     @Test
     public void everyCaseIsDescribedAndOldNamesParse() {
         for (PhoneCase c : PhoneCase.values()) {
@@ -517,13 +438,22 @@ public class PhoneResponderTest {
             assertTrue(c + " simulates", c.simulates.length() > 20);
             assertTrue(c + " phoneDoes", c.phoneDoes.length() > 10);
             assertTrue(c + " checkOnPos", c.checkOnPos.length() > 5);
-            assertNotNull(c.group);
             assertEquals(c.checksQrKind(), c.expectedKind() != null);
         }
-        for (String old : new String[] {"ACCEPT", "NOT_INSTALLED", "REJECT_DATA", "REJECT_CONDITIONS", "REJECT_ERROR",
+        for (String kept : new String[] {"ACCEPT", "REJECT_DATA"}) assertEquals(kept, PhoneCase.parse(kept).name());
+        // a case saved in preferences by an older build, since removed: the phone falls back to the generic case
+        for (String removed : new String[] {"NOT_INSTALLED", "REJECT_CONDITIONS", "REJECT_ERROR",
                 "BREAK_SECOND_CHUNK", "SLOW_ANSWER", "NO_ANSWER"}) {
-            assertEquals(old, PhoneCase.parse(old).name());
+            assertEquals(removed, PhoneCase.ACCEPT, PhoneCase.parse(removed));
         }
+        assertEquals("Generic QR", PhoneCase.ACCEPT.label);
+        assertEquals("Invalid QR", PhoneCase.REJECT_DATA.label);
+        for (PhoneCase c : PhoneCase.values()) {
+            assertTrue(c + " says bank app, not wallet", !(c.label + c.simulates + c.phoneDoes + c.checkOnPos)
+                    .toLowerCase(java.util.Locale.ROOT).contains("wallet"));
+        }
+        assertEquals(6, PhoneCase.values().length);
+        assertEquals(PhoneCase.REJECT_DATA, PhoneCase.values()[PhoneCase.values().length - 1]);
         assertEquals(PhoneCase.DQRC_NO_AMOUNT, PhoneCase.parse("dqrc_no_amount"));
     }
 }
