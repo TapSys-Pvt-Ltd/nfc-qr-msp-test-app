@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="pk.paysys.tap2pay.wallet">
+
+    <uses-permission android:name="android.permission.NFC" />
+    <uses-feature android:name="android.hardware.nfc.hce" android:required="true" />
+
+    <!-- Android 11+ package visibility: lets us check whether any payment app handles the hand-off -->
+    <queries>
+        <intent>
+            <action android:name="pk.paysys.tap2pay.action.PAY_INVOICE" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:label="@string/app_name"
+        android:theme="@android:style/Theme.DeviceDefault">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Shown after an accepted tap, over the lock screen; hands the QR string to a chosen app -->
+        <activity
+            android:name=".InvoiceHandoffActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:taskAffinity="pk.paysys.tap2pay.handoff" />
+
+        <!-- Stand-in payment app on the PayIntent contract (what the NBP beta app will declare) -->
+        <activity
+            android:name=".DemoBankActivity"
+            android:exported="true"
+            android:label="Demo bank app">
+            <intent-filter>
+                <action android:name="pk.paysys.tap2pay.action.PAY_INVOICE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <!-- Spec Clause 8.3: AID in an "other" category group only (P-01) -->
+        <service
+            android:name=".Tap2PayHceService"
+            android:exported="true"
+            android:permission="android.permission.BIND_NFC_SERVICE">
+            <intent-filter>
+                <action android:name="android.nfc.cardemulation.action.HOST_APDU_SERVICE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.nfc.cardemulation.host_apdu_service"
+                android:resource="@xml/tap2pay_aid_list" />
+        </service>
+    </application>
+</manifest>

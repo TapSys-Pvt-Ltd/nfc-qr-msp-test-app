@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tap2Pay Wallet Test</string>
+    <string name="tap2pay_service_desc">Tap2Pay via Raast (test)</string>
+    <string name="tap2pay_group_desc">Tap2Pay invoice</string>
+</resources>
