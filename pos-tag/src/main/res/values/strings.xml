@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">Tap2Pay POS Tag Test</string>
-    <string name="tag_service_desc">Tap2Pay invoice tag (test)</string>
-    <string name="tag_group_desc">Tap2Pay invoice for phones that read</string>
-</resources>

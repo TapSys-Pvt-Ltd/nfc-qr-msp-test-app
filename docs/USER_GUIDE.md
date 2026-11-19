@@ -5,7 +5,7 @@ Use this guide to install the phone test app, choose a Tap2Pay case, tap a POS, 
 ## Before you start
 
 - Use an Android 7.0 (API 24) or newer phone with NFC and Host Card Emulation (HCE). The app requires HCE hardware. An emulator can display the interface but cannot perform a physical NFC tap.
-- Use a compatible Urovo i9100 or Sunmi P3 POS running a Tap2Pay flow. To send synthetic QR variants, use the repository's `pos-reader` app on a supported Urovo reader.
+- Use a compatible Urovo i9100 or Sunmi P3 POS running a Tap2Pay flow.
 - Enable NFC on the phone. For the first test, keep the phone unlocked and the test kit open.
 - If the NBP bank app is installed, keep the test kit in front while tapping. It registers the same Tap2Pay AID; the status card warns about this case.
 
@@ -39,7 +39,7 @@ The same QR can be used more than once. The case chosen when the POS sends SELEC
 | **DQRC without amount** | Dynamic QR with no amount tag `54`. | POS reports a successful send. |
 | **Invalid QR** | Refuses a complete invalid QR with status `6A80`. | POS reports failure, retry, or fallback rather than success. |
 
-The Urovo FBL app normally produces DQRC with amount and SQRC without amount. Use the repository's `pos-reader` sample QR buttons for the other QR-kind cases. The test kit accepts a valid QR even when its kind does not match the selected case; the phone then marks the case **FAIL** and explains the mismatch.
+The Urovo FBL app normally produces DQRC with amount and SQRC without amount. The other two QR-kind cases need a POS or test tool that sends those kinds. The test kit accepts a valid QR even when its kind does not match the selected case; the phone then marks the case **FAIL** and explains the mismatch.
 
 ## Understand the results
 
@@ -88,4 +88,4 @@ Details explains the expected phone response and POS behavior, then lists tap lo
 | **CHECK POS** | The phone refused the QR as the case intended. Confirm the POS does not report success. |
 | **Build fails before compilation** | Check JDK 17, Android SDK platform 33, and the Gradle JDK path. On Windows use Git Bash. |
 
-The [phone-test technical README](../phone-test/README.md) contains the case matrix and protocol expectations. The [repository README](../README.md) summarizes all modules. Earlier proof-of-concept work is in [technical notes](TECHNICAL_NOTES.md).
+The [phone-test technical README](../phone-test/README.md) contains the case matrix and protocol expectations. The [repository README](../README.md) summarizes the modules.

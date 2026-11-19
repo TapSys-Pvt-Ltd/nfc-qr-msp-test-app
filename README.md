@@ -2,12 +2,12 @@
 
 Android phone test app for the customer side of Tap2Pay via Raast. Select a test case, tap a compatible POS, and inspect the NFC exchange, QR payload, and result on the phone. The app does not make or authorize a payment.
 
-The main app is [`phone-test`](phone-test/README.md) (version 0.5). This repository also contains POS and wallet proof-of-concept modules, shared protocol code, and an iOS reader experiment. See the [user guide](docs/USER_GUIDE.md) or [Word guide](docs/Tapsys_Tap2Pay_Test_Kit_User_Guide.docx) for setup and screen-by-screen instructions. The original proof-of-concept notes are in [technical notes](docs/TECHNICAL_NOTES.md).
+The app is [`phone-test`](phone-test/README.md) (version 0.5), built on the shared protocol code in `core`. See the [user guide](docs/USER_GUIDE.md) or [Word guide](docs/Tapsys_Tap2Pay_Test_Kit_User_Guide.docx) for setup and screen-by-screen instructions.
 
 ## Requirements
 
 - Android 7.0 (API 24) or newer phone with NFC and Host Card Emulation (HCE). The phone app requires HCE hardware.
-- A Tap2Pay-capable Urovo i9100 or Sunmi P3 POS that pushes a Raast QR over NFC. The repository's `pos-reader` app can generate sample QRs for additional cases on a supported reader.
+- A Tap2Pay-capable Urovo i9100 or Sunmi P3 POS that pushes a Raast QR over NFC.
 - To build: JDK 17, Android SDK platform 33, and Android build tools. The Gradle wrapper is included.
 
 ## Build and install the phone app
@@ -62,10 +62,7 @@ These are screens captured from the app on an Android emulator. The emulator can
 | --- | --- |
 | `phone-test` | Current customer-phone test app with six cases and tap logs. |
 | `core` | Plain Java APDU, QR, validation, and test logic. |
-| `pos-reader` | Urovo POS reader proof of concept and sample QR sender. |
-| `wallet-hce` | Earlier HCE wallet proof of concept. |
-| `pos-tag`, `tag-writer`, `ios-reader` | Reverse tag route and iPhone reader experiments. |
 
 ## License
 
-The source code is licensed under the [GNU Affero General Public License version 3](LICENSE). The bundled Urovo SDK binary has separate vendor terms; see [third-party notices](docs/THIRD_PARTY_NOTICES.md). The Tapsys name, wordmark, and icon identify the test app.
+The source code is licensed under the [GNU Affero General Public License version 3](LICENSE). See [third-party notices](docs/THIRD_PARTY_NOTICES.md) for the Gradle wrapper. The Tapsys name, wordmark, and icon identify the test app.

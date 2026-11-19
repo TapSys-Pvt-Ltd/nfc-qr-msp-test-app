@@ -47,10 +47,8 @@ The four QR-kind cases answer exactly like the NBP app (a wrong kind still gets 
 phone says the POS sent the wrong kind. A tag `54` that is present but `0` or not a number fails both the
 with- and without-amount cases.
 
-The Urovo FBL app makes only **DQRC with amount** (RaastQR) and **SQRC without amount** (Static QR tile). To try
-the other two kinds, use the POC **pos-reader** (Tap2Pay POS Test) on the Urovo: its buttons *SQRC, no amount*,
-*SQRC + amount*, *DQRC + amount* and *DQRC, no amount* push a made-up Raast QR (`core` `SampleQr`, merchant
-"Tap2Pay Test") in the Urovo's spec header form, with the amount from its amount box.
+The Urovo FBL app makes only **DQRC with amount** (RaastQR) and **SQRC without amount** (Static QR tile). The other
+two kinds need a POS or test tool that sends them.
 
 ## Scenario matrix (phone side)
 
