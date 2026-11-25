@@ -79,7 +79,7 @@ public final class TapRecord {
     /** "spec (P1 03, as the Urovo app sends)" etc. */
     public static String formName(PushAssembler.Form f) {
         switch (f) {
-            case SPEC: return "spec header, P1 03 (Urovo app form)";
+            case SPEC: return "spec header, P1 03 (POS terminal form)";
             case INDEX: return "index header, P1 00/01 (Sunmi Mindcrafts form)";
             default: return "no PUSH received";
         }
