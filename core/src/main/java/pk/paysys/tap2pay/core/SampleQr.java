@@ -29,7 +29,7 @@ public final class SampleQr {
         qr.append(tlv("00", "01"));
         qr.append(tlv("01", dynamic ? "12" : "11"));
         qr.append(tlv("28", tlv("00", "2611061516150000001") + tlv("01", "FAYSPKKA")
-                + tlv("02", "PK00TEST0000000000000001")));
+                + tlv("02", "PK38TEST0000000000000001")));
         qr.append(tlv("52", "1750"));
         qr.append(tlv("53", "586"));
         if (!amt.isEmpty()) qr.append(tlv("54", amt));

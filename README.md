@@ -1,68 +1,67 @@
-# Tapsys Tap2Pay Test Kit
+# NFC QR MSP Test App
 
-Android phone test app for the customer side of Tap2Pay via Raast. Select a test case, tap a compatible POS, and inspect the NFC exchange, QR payload, and result on the phone. The app does not make or authorize a payment.
+Test app for **MSPs** (the merchant's acquirer and its POS). An Android phone plays the customer's bank app for
+Tap2Pay via Raast: it opens on a Tap2Pay NFC tap (even when closed or locked), checks every APDU and the QR the POS
+sends, and shows the data a bank app would use. The app does not make or authorize a payment.
 
-The app is [`phone-test`](phone-test/README.md) (version 0.5), built on the shared protocol code in `core`. See the [user guide](docs/USER_GUIDE.md) or [Word guide](docs/Tapsys_Tap2Pay_Test_Kit_User_Guide.docx) for setup and screen-by-screen instructions.
+The app is [`bank-app`](bank-app/README.md), label **NFC QR Test App**, built on the shared protocol code in `core`.
+Its README has the screens and the full scenario matrix.
+
+The CSP side (a phone that plays the POS, to test a bank app) is the separate **NFC QR CSP Test App**
+(Tap2Pay POS Simulator).
 
 ## Requirements
 
-- Android 7.0 (API 24) or newer phone with NFC and Host Card Emulation (HCE). The phone app requires HCE hardware.
-- A Tap2Pay-capable Urovo i9100 or Sunmi P3 POS that pushes a Raast QR over NFC.
+- Android 8.0 (API 26) or newer phone with NFC and Host Card Emulation (HCE).
+- A Tap2Pay-capable POS that pushes a Raast QR over NFC (for example Urovo i9100 or Sunmi P3), or a second phone
+  running the NFC QR CSP Test App.
 - To build: JDK 17, Android SDK platform 33, and Android build tools. The Gradle wrapper is included.
 
-## Build and install the phone app
+## Build and install
 
-1. Clone this repository and set `ANDROID_HOME` to your Android SDK, or add `local.properties` containing `sdk.dir=/path/to/Android/sdk`.
-2. The checked-in `gradle.properties` pins a macOS Homebrew JDK path. If your JDK 17 is elsewhere, change or remove `org.gradle.java.home`, or override it on the Gradle command line.
+1. Clone this repository and set `ANDROID_HOME` to your Android SDK, or add `local.properties` containing
+   `sdk.dir=/path/to/Android/sdk`.
+2. The checked-in `gradle.properties` pins a macOS Homebrew JDK path. If your JDK 17 is elsewhere, change or remove
+   `org.gradle.java.home`, or override it on the Gradle command line.
 3. From the repository root, run:
 
    ```bash
-   ./gradlew :core:test :phone-test:assembleDebug
+   ./gradlew :core:test :bank-app:assembleDebug
    ```
 
    On Windows use Git Bash for `gradlew` (this repository has no `gradlew.bat`). For example, with your actual JDK path:
 
    ```bash
-   ./gradlew "-Dorg.gradle.java.home=C:/Program Files/Microsoft/jdk-17" :core:test :phone-test:assembleDebug
+   ./gradlew "-Dorg.gradle.java.home=C:/Program Files/Microsoft/jdk-17" :core:test :bank-app:assembleDebug
    ```
 
-4. Install `phone-test/build/outputs/apk/debug/phone-test-debug.apk` on the phone, or run:
+4. Install the APK:
 
    ```bash
-   adb install -r phone-test/build/outputs/apk/debug/phone-test-debug.apk
+   adb install -r bank-app/build/outputs/apk/debug/bank-app-debug.apk
    ```
 
 ## Run a test
 
-1. Enable NFC. Open **Tapsys Tap2Pay Test Kit** and check the status card. It should say **NFC ready**. If the NBP app is also installed, keep this screen open while tapping so this app receives the Tap2Pay AID.
-2. Tap one of the six **Test cases** to select it. Its badge changes to **WAITING FOR TAP** until a tap arrives.
-3. Start a Tap2Pay transaction on the POS and hold the phone against the reader until the exchange ends.
-4. Open the selected case to see **PASS**, **FAIL**, or **CHECK POS** and the explanation. Tap **Details** for the expected behavior and APDU log. Use **Copy log** or **Copy all taps** when reporting a result.
-
-| Case | Phone-side check |
-| --- | --- |
-| Generic QR | A valid Raast QR is received and accepted. |
-| SQRC without amount | Static QR without amount tag `54`. |
-| SQRC with amount | Static QR with a positive amount. |
-| DQRC with amount | Dynamic QR with a positive amount. |
-| DQRC without amount | Dynamic QR without amount tag `54`. |
-| Invalid QR | The phone refuses a malformed QR; check that the POS reports the failure. |
-
-**CHECK POS** means the phone behaved as expected for the Invalid QR case, and the POS outcome must be checked separately. See the [user guide](docs/USER_GUIDE.md#understand-the-results) for all badge meanings and troubleshooting.
-
-## Screenshots
-
-<img src="docs/screenshots/test-cases.png" alt="Tap2Pay Test Kit test cases on an Android emulator" width="280"> <img src="docs/screenshots/selected-case.png" alt="Selected DQRC with amount case waiting for a tap" width="280">
-
-These are screens captured from the app on an Android emulator. The emulator cannot perform a physical NFC tap, so the status shows no NFC hardware. Use an NFC phone for actual testing. More images appear in the [user guide](docs/USER_GUIDE.md#screens-at-a-glance).
+1. Enable NFC and open **NFC QR Test App**. The status card should say it is ready for a tap. If it warns that
+   another app registers the same AID (a bank app, the Tapsys Tap2Pay Test Kit), uninstall or disable that app.
+2. Start a Tap2Pay sale on the POS and hold the phone on the reader. The app opens by itself when the POS sends a QR.
+3. The tap screen shows **1 NFC communication** (every APDU and status word, checked against the spec),
+   **2 QR validation** (every tag checked) and **3 Data extracted** (the data a bank app would use). Use **Copy log**
+   or **Copy all logs** when reporting a result.
 
 ## Repository modules
 
 | Module | Purpose |
 | --- | --- |
-| `phone-test` | Current customer-phone test app with six cases and tap logs. |
-| `core` | Plain Java APDU, QR, validation, and test logic. |
+| `bank-app` | The customer-phone test app (applicationId `pk.paysys.tap2pay.bankapp`): HCE service, tap screens, history. |
+| `core` | Plain Java, unit-tested: HCE responder, APDU and QR parsing and checks, NFC/QR reports, tap history, log text. |
+
+The earlier Tapsys Tap2Pay Test Kit (`phone-test`) is in this repository's history up to the commit before the one
+that replaced it.
 
 ## License
 
-The source code is licensed under the [GNU Affero General Public License version 3](LICENSE). See [third-party notices](docs/THIRD_PARTY_NOTICES.md) for the Gradle wrapper. The Tapsys name, wordmark, and icon identify the test app.
+The source code is licensed under the [GNU Affero General Public License version 3](LICENSE). See
+[third-party notices](docs/THIRD_PARTY_NOTICES.md) for the Gradle wrapper and the Inter font. The Tapsys name,
+wordmark, and icon identify the test app.

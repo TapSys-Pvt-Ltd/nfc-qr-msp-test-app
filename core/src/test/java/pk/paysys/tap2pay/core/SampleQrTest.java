@@ -25,7 +25,7 @@ public class SampleQrTest {
                 assertEquals("Tap2Pay Test", q.merchant);
                 assertEquals("999000000000001", q.mid);
                 assertEquals("00009999", q.tid);
-                assertEquals("PK00TEST0000000000000001", q.iban);
+                assertEquals("PK38TEST0000000000000001", q.iban); // valid mod-97, so the QR checks show no warning
             }
         }
     }

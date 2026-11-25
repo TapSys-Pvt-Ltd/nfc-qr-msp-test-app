@@ -76,7 +76,7 @@ public class PhoneResponderTest {
         assertEquals(PushAssembler.Form.SPEC, t.form());
         assertEquals(1, t.chunks);
         assertEquals(4, t.exchanges().size());
-        assertTrue(t.describe(false).contains("Urovo app form"));
+        assertTrue(t.describe(false).contains("spec header, P1 03 (POS terminal form)"));
     }
 
     // Row 2

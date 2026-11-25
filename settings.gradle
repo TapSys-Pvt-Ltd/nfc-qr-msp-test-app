@@ -1,2 +1,2 @@
-rootProject.name = 'tap2pay-poc'
-include ':core', ':phone-test'
+rootProject.name = 'nfc-qr-msp-test-app'
+include ':core', ':bank-app'

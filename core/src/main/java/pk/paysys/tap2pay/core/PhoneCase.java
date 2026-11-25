@@ -7,27 +7,27 @@ package pk.paysys.tap2pay.core;
  */
 public enum PhoneCase {
     ACCEPT(null, null, "Generic QR",
-            "A normal customer phone with the NBP app: any valid Raast QR is accepted.",
+            "A normal customer phone with a bank app: any valid Raast QR is accepted.",
             "Takes the whole QR. Answers 9000 (accepted) if its format and CRC are valid, 6A80 (invalid data) if "
                     + "not. Any QR kind passes.",
             "\"Sent to the customer's phone\" or the same success message the POS shows for a real phone."),
     SQRC_NO_AMOUNT(RaastQr.TYPE_STATIC, Boolean.FALSE, "SQRC without amount",
             "A static merchant QR (SQRC, 01 = 11) with no amount: the customer types the amount in the app.",
-            "Answers like the NBP app (9000). PASS only if the QR is static and has no amount (no tag 54); "
+            "Answers like a bank app (9000). PASS only if the QR is static and has no amount (no tag 54); "
                     + "any other kind is a FAIL that names what arrived.",
             "\"Sent to the customer's phone\"; the static QR screen stays up."),
     SQRC_WITH_AMOUNT(RaastQr.TYPE_STATIC, Boolean.TRUE, "SQRC with amount",
             "A static merchant QR (SQRC, 01 = 11) that also carries the amount the cashier entered.",
-            "Answers like the NBP app (9000). PASS only if the QR is static and has an amount above 0 (tag 54).",
+            "Answers like a bank app (9000). PASS only if the QR is static and has an amount above 0 (tag 54).",
             "\"Sent to the customer's phone\"; the amount on the POS matches the amount in the details."),
     DQRC_WITH_AMOUNT(RaastQr.TYPE_DYNAMIC, Boolean.TRUE, "DQRC with amount",
             "The normal Raast QR sale: a one-time dynamic QR (DQRC, 01 = 12) for the amount the cashier entered.",
-            "Answers like the NBP app (9000). PASS only if the QR is dynamic and has an amount above 0 (tag 54).",
+            "Answers like a bank app (9000). PASS only if the QR is dynamic and has an amount above 0 (tag 54).",
             "\"Sent to the customer's phone\"; the amount on the POS matches the amount in the details."),
     DQRC_NO_AMOUNT(RaastQr.TYPE_DYNAMIC, Boolean.FALSE, "DQRC without amount",
             "A dynamic QR (01 = 12) with no amount. The Tap2Pay spec requires an amount on a dynamic QR, so a POS "
                     + "should normally never send this; use it to catch one that does.",
-            "Answers like the NBP app (9000). PASS only if the QR is dynamic and has no amount (no tag 54).",
+            "Answers like a bank app (9000). PASS only if the QR is dynamic and has no amount (no tag 54).",
             "\"Sent to the customer's phone\"."),
     REJECT_DATA(null, null, "Invalid QR",
             "The bank app cannot read the QR it was sent: wrong format, bad CRC or a missing field.",
